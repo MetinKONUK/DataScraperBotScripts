@@ -9,6 +9,7 @@ puppeteer.use(
         visualFeedback: true, // colorize reCAPTCHAs (violet = detected, green = solved)
     })
 )
+
 puppeteer.use(require('puppeteer-extra-plugin-stealth')())
 
 /**
@@ -48,7 +49,7 @@ class Scraper {
     static resultCountScraper = async (category, district, city) => {
         const browser = await puppeteer.launch({
             headless: 'new',
-            protocolTimeout: 0,
+            protocolTimeout: 120 * 1000,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
@@ -67,7 +68,7 @@ class Scraper {
             password: process.env.PROXY_PASSWORD,
         })
 
-        page.setDefaultTimeout(0)
+        page.setDefaultTimeout(120 * 1000)
 
         const URL = this.BASE_URL + category + '/' + district + '-' + city
         await page.goto(URL)
@@ -78,7 +79,9 @@ class Scraper {
             await page.solveRecaptchas()
         }
 
-        await page.waitForSelector('span.mainCountTitle', { timeout: 0 })
+        await page.waitForSelector('span.mainCountTitle', {
+            timeout: 120 * 1000,
+        })
         const districtEntityCount = await page.evaluate(() => {
             const COUNT = document
                 .querySelector('span.mainCountTitle')
@@ -106,7 +109,7 @@ class Scraper {
             await page.solveRecaptchas()
         }
 
-        await page.waitForSelector('div#SearchResults', { timeout: 0 })
+        await page.waitForSelector('div#SearchResults', { timeout: 120 * 1000 })
         const links = await page.evaluate(() => {
             const RESULTS_HTML = document.querySelector('div#SearchResults')
             const LINKS_HTML = RESULTS_HTML.querySelectorAll(
@@ -139,7 +142,7 @@ class Scraper {
     ) => {
         const browser = await puppeteer.launch({
             headless: 'new',
-            protocolTimeout: 0,
+            protocolTimeout: 120 * 1000,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
@@ -157,7 +160,7 @@ class Scraper {
             password: process.env.PROXY_PASSWORD,
         })
 
-        page.setDefaultTimeout(0)
+        page.setDefaultTimeout(120 * 1000)
 
         let links = []
         for (let i = 0; i < pageCount; i++) {
@@ -197,7 +200,7 @@ class Scraper {
     ) => {
         const browser = await puppeteer.launch({
             headless: 'new',
-            protocolTimeout: 0,
+            protocolTimeout: 120 * 1000,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
@@ -215,7 +218,7 @@ class Scraper {
             password: process.env.PROXY_PASSWORD,
         })
 
-        page.setDefaultTimeout(0)
+        page.setDefaultTimeout(120 * 1000)
 
         let links = []
         for (let i = 0; i < pageCount; i++) {
@@ -240,7 +243,7 @@ class Scraper {
     static targetDataScraper = async (links) => {
         const browser = await puppeteer.launch({
             headless: 'new',
-            protocolTimeout: 0,
+            protocolTimeout: 120 * 1000,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
@@ -253,6 +256,8 @@ class Scraper {
         })
         const pages = await browser.pages()
         const page = pages[0]
+        page.setDefaultTimeout(120 * 1000)
+
         await page.authenticate({
             username: process.env.PROXY_USERNAME,
             password: process.env.PROXY_PASSWORD,
@@ -268,7 +273,9 @@ class Scraper {
             }
 
             // Now wait after the reCAPTCHA is solved
-            await page.waitForSelector('#CompanyNameLbl', { timeout: 0 })
+            await page.waitForSelector('#CompanyNameLbl', {
+                timeout: 120 * 1000,
+            })
 
             try {
                 let [
