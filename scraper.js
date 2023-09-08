@@ -47,7 +47,7 @@ class Scraper {
      */
     static resultCountScraper = async (category, district, city) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'new',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
@@ -138,7 +138,7 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'new',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
@@ -196,7 +196,7 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'new',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
@@ -239,7 +239,7 @@ class Scraper {
 
     static targetDataScraper = async (links) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'new',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,

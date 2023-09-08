@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 5000
 server.get('/', async (req, res) => {
     // query example: http://localhost:5000/?category=veteriner&city=istanbul&district=sisli
     const { category, district, city } = req.query
-
+    console.log('request received: ', category, district, city)
     // Get the total number of results
     const resultCount = await Scraper.resultCountScraper(
         category,
@@ -21,6 +21,7 @@ server.get('/', async (req, res) => {
     let totalPageCount = Math.ceil(resultCount / Scraper.MAX_ENTITY_PER_PAGE)
     let pageCount = totalPageCount > 10 ? 10 : totalPageCount
 
+    console.log('resultCount: ', resultCount)
     // Scrape the links
     let links = []
     // Scrape the first 10 pages
@@ -56,6 +57,7 @@ server.get('/', async (req, res) => {
     // Calculate the number of links that are lost
     let loss = (resultCount - Scraper.ENTITY_DISPLAY_LIMIT) << 1
 
+    console.log('scraping links completed, now scraping target data...')
     // Scrape the target data
     try {
         let data = await Scraper.targetDataScraper(links)
