@@ -7,9 +7,8 @@ const Scraper = require('./scraper')
 const PORT = process.env.PORT || 5000
 
 server.get('/', async (req, res) => {
-    // query example: http://localhost:5000/?category=veteriner&city=istanbul&district=sisli
+    // query example: https://scraper-service-4ax0.onrender.com/?category=veteriner&city=istanbul&district=sisli
     const { category, district, city } = req.query
-    res.send({ category, district, city })
     console.log('request received: ', category, district, city)
     // Get the total number of results
     const resultCount = await Scraper.resultCountScraper(
@@ -23,7 +22,6 @@ server.get('/', async (req, res) => {
     let pageCount = totalPageCount > 10 ? 10 : totalPageCount
 
     console.log('resultCount: ', resultCount)
-    res.send({ resultCount })
 
     // Scrape the links
     let links = []
