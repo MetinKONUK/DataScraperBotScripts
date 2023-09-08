@@ -47,18 +47,13 @@ class Scraper {
      */
     static resultCountScraper = async (category, district, city) => {
         const browser = await puppeteer.launch({
-            headless: 'true',
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--single-process',
-                '--no-zygote',
-            ],
+            args: [`--proxy-server=http://87.251.18.203:50100`],
             executablePath:
                 process.env.NODE_ENV === 'production'
                     ? process.env.PUPPETEER_EXECUTABLE_PATH
@@ -67,6 +62,11 @@ class Scraper {
         const pages = await browser.pages()
 
         const page = pages[0]
+        await page.authenticate({
+            username: process.env.PROXY_USERNAME,
+            password: process.env.PROXY_PASSWORD,
+        })
+
         page.setDefaultTimeout(0)
 
         const URL = this.BASE_URL + category + '/' + district + '-' + city
@@ -138,18 +138,13 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: 'true',
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--single-process',
-                '--no-zygote',
-            ],
+            args: [`--proxy-server=http://87.251.18.203:50100`],
             executablePath:
                 process.env.NODE_ENV === 'production'
                     ? process.env.PUPPETEER_EXECUTABLE_PATH
@@ -157,6 +152,11 @@ class Scraper {
         })
         const pages = await browser.pages()
         const page = pages[0]
+        await page.authenticate({
+            username: process.env.PROXY_USERNAME,
+            password: process.env.PROXY_PASSWORD,
+        })
+
         page.setDefaultTimeout(0)
 
         let links = []
@@ -196,18 +196,13 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: 'true',
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--single-process',
-                '--no-zygote',
-            ],
+            args: [`--proxy-server=http://87.251.18.203:50100`],
             executablePath:
                 process.env.NODE_ENV === 'production'
                     ? process.env.PUPPETEER_EXECUTABLE_PATH
@@ -215,6 +210,11 @@ class Scraper {
         })
         const pages = await browser.pages()
         const page = pages[0]
+        await page.authenticate({
+            username: process.env.PROXY_USERNAME,
+            password: process.env.PROXY_PASSWORD,
+        })
+
         page.setDefaultTimeout(0)
 
         let links = []
@@ -239,18 +239,13 @@ class Scraper {
 
     static targetDataScraper = async (links) => {
         const browser = await puppeteer.launch({
-            headless: 'true',
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--single-process',
-                '--no-zygote',
-            ],
+            args: [`--proxy-server=http://87.251.18.203:50100`],
             executablePath:
                 process.env.NODE_ENV === 'production'
                     ? process.env.PUPPETEER_EXECUTABLE_PATH
@@ -258,6 +253,10 @@ class Scraper {
         })
         const pages = await browser.pages()
         const page = pages[0]
+        await page.authenticate({
+            username: process.env.PROXY_USERNAME,
+            password: process.env.PROXY_PASSWORD,
+        })
 
         let data = []
         for (let [index, link] of links.entries()) {
