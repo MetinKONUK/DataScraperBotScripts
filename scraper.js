@@ -1,5 +1,14 @@
 const puppeteer = require('puppeteer-extra')
 
+puppeteer.use(
+    require('puppeteer-extra-plugin-recaptcha')({
+        provider: {
+            id: '2captcha',
+            token: process.env.CAPTCHA_API_TOKEN,
+        },
+        visualFeedback: true, // colorize reCAPTCHAs (violet = detected, green = solved)
+    })
+)
 puppeteer.use(require('puppeteer-extra-plugin-stealth')())
 
 /**
@@ -20,23 +29,43 @@ class Scraper {
     static ENTITY_DISPLAY_LIMIT = 200
     static MAX_ENTITY_PER_PAGE = 20
 
+    static reCAPTCHAFinder = async (page) => {
+        const captcha = await page.$('.captchaBox')
+        return captcha != null
+    }
+
     /**
      *
-     * @param {*} category: The category of the entity
-     * @param {*} district: The district of the entity
-     * @param {*} city: The city of the entity
+     * @param {string} category: The category of the entity
+     * @param {string} district: The district of the entity
+     * @param {string} city: The city of the entity
      * @returns: The total number of results
      */
     static resultCountScraper = async (category, district, city) => {
-        const browser = await puppeteer.launch({ headless: false })
+        const browser = await puppeteer.launch({
+            headless: false,
+            protocolTimeout: 0,
+            defaultViewport: {
+                width: 1920,
+                height: 1080,
+            },
+            args: ['--no-sandbox'],
+        })
         const pages = await browser.pages()
 
         const page = pages[0]
+        page.setDefaultTimeout(0)
 
         const URL = this.BASE_URL + category + '/' + district + '-' + city
         await page.goto(URL)
 
-        await page.waitForSelector('span.mainCountTitle')
+        // reCAPTCHA here
+        if (await this.reCAPTCHAFinder(page)) {
+            console.log('reCAPTCHA found')
+            await page.solveRecaptchas()
+        }
+
+        await page.waitForSelector('span.mainCountTitle', { timeout: 0 })
         const districtEntityCount = await page.evaluate(() => {
             const COUNT = document
                 .querySelector('span.mainCountTitle')
@@ -51,15 +80,20 @@ class Scraper {
 
     /**
      *
-     * @param {*} URL: The URL of the page to scrape that contains the links
-     * @param {*} page: The page object of the browser
+     * @param {string} URL: The URL of the page to scrape that contains the links
+     * @param {puppeteer.browser.page} page: The page object of the browser
      * @returns: The links in the page
      * @description: Scrapes the links in a page
      */
     static linkScraper = async (URL, page) => {
         await page.goto(URL)
+        // reCAPTCHA here
+        if (await this.reCAPTCHAFinder(page)) {
+            console.log('reCAPTCHA found')
+            await page.solveRecaptchas()
+        }
 
-        await page.waitForSelector('div#SearchResults')
+        await page.waitForSelector('div#SearchResults', { timeout: 0 })
         const links = await page.evaluate(() => {
             const RESULTS_HTML = document.querySelector('div#SearchResults')
             const LINKS_HTML = RESULTS_HTML.querySelectorAll(
@@ -77,10 +111,10 @@ class Scraper {
 
     /**
      *
-     * @param {*} category: The category of the entity
-     * @param {*} district: The district of the entity
-     * @param {*} city: The city of the entity
-     * @param {*} pageCount: The number of pages to scrape
+     * @param {string} category: The category of the entity
+     * @param {string} district: The district of the entity
+     * @param {string} city: The city of the entity
+     * @param {number} pageCount: The number of pages to scrape
      * @returns: The links in A-Z order beginning from the first page
      * @description: Scrapes the links in A-Z order beginning from the first page
      */
@@ -90,9 +124,18 @@ class Scraper {
         city,
         pageCount
     ) => {
-        const browser = await puppeteer.launch({ headless: false })
+        const browser = await puppeteer.launch({
+            headless: false,
+            protocolTimeout: 0,
+            defaultViewport: {
+                width: 1920,
+                height: 1080,
+            },
+            args: ['--no-sandbox'],
+        })
         const pages = await browser.pages()
         const page = pages[0]
+        page.setDefaultTimeout(0)
 
         let links = []
         for (let i = 0; i < pageCount; i++) {
@@ -117,10 +160,10 @@ class Scraper {
 
     /**
      *
-     * @param {*} category: The category of the entity
-     * @param {*} district: The district of the entity
-     * @param {*} city: The city of the entity
-     * @param {*} pageCount: The number of pages to scrape
+     * @param {string} category: The category of the entity
+     * @param {string} district: The district of the entity
+     * @param {string} city: The city of the entity
+     * @param {number} pageCount: The number of pages to scrape
      * @returns: The links in Z-A order beginning from the last page
      * @description: Scrapes the links in Z-A order beginning from the last page
      */
@@ -130,9 +173,18 @@ class Scraper {
         city,
         pageCount
     ) => {
-        const browser = await puppeteer.launch({ headless: false })
+        const browser = await puppeteer.launch({
+            headless: false,
+            protocolTimeout: 0,
+            defaultViewport: {
+                width: 1920,
+                height: 1080,
+            },
+            args: ['--no-sandbox'],
+        })
         const pages = await browser.pages()
         const page = pages[0]
+        page.setDefaultTimeout(0)
 
         let links = []
         for (let i = 0; i < pageCount; i++) {
@@ -155,15 +207,30 @@ class Scraper {
     }
 
     static targetDataScraper = async (links) => {
-        const browser = await puppeteer.launch({ headless: false })
+        const browser = await puppeteer.launch({
+            headless: false,
+            protocolTimeout: 0,
+            defaultViewport: {
+                width: 1920,
+                height: 1080,
+            },
+            args: ['--no-sandbox'],
+        })
         const pages = await browser.pages()
         const page = pages[0]
 
         let data = []
         for (let [index, link] of links.entries()) {
             await page.goto(link)
+            // reCAPTCHA here
+            if (await this.reCAPTCHAFinder(page)) {
+                console.log('reCAPTCHA found')
+                await page.solveRecaptchas()
+            }
 
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            // Now wait after the reCAPTCHA is solved
+            await page.waitForSelector('#CompanyNameLbl', { timeout: 0 })
+
             try {
                 let [
                     companyName,
@@ -181,7 +248,7 @@ class Scraper {
                             ?.textContent.trim() ?? null
                     let professions =
                         document
-                            .querySelector('#CompanyNameLbl')
+                            .querySelector('#ProfessionLbl')
                             ?.textContent.trim() ?? null
                     let address =
                         document
@@ -198,15 +265,20 @@ class Scraper {
                     let websiteLink =
                         document
                             .querySelector('#WebsiteContLbl > a')
-                            ?.href.trim() ?? null
+                            ?.textContent.trim() ?? null
                     let email =
                         document
                             .querySelector('#EmailContLbl > a')
-                            ?.href.trim() ?? null
+                            ?.textContent.trim() ?? null
                     let instagram =
                         document
                             .querySelector('a:has(#InstagramIcon)')
-                            ?.href.trim() ?? null
+                            ?.textContent.trim() ?? null
+
+                    address = address?.split('\n')[0] ?? null
+                    websiteLink = websiteLink?.includes('http') ?? null
+                    email = email?.includes('@') ?? null
+
                     return [
                         companyName,
                         professions,
@@ -218,6 +290,19 @@ class Scraper {
                         instagram,
                     ]
                 })
+
+                console.log(
+                    index,
+                    companyName,
+                    professions,
+                    address,
+                    primaryPhone,
+                    secondaryPhone,
+                    websiteLink,
+                    email,
+                    instagram
+                )
+
                 data.push({
                     companyName,
                     professions,
@@ -233,8 +318,9 @@ class Scraper {
             }
         }
 
-        console.log(data)
+        // console.log(data)
         await browser.close()
+        console.log('scraper.js data: ', data)
         return data
     }
 }
