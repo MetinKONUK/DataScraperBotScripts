@@ -47,13 +47,22 @@ class Scraper {
      */
     static resultCountScraper = async (category, district, city) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'true',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: ['--no-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--single-process',
+                '--no-zygote',
+            ],
+            executablePath:
+                process.env.NODE_ENV === 'production'
+                    ? process.env.PUPPETEER_EXECUTABLE_PATH
+                    : puppeteer.executablePath(),
         })
         const pages = await browser.pages()
 
@@ -129,13 +138,22 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'true',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: ['--no-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--single-process',
+                '--no-zygote',
+            ],
+            executablePath:
+                process.env.NODE_ENV === 'production'
+                    ? process.env.PUPPETEER_EXECUTABLE_PATH
+                    : puppeteer.executablePath(),
         })
         const pages = await browser.pages()
         const page = pages[0]
@@ -178,13 +196,22 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'true',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: ['--no-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--single-process',
+                '--no-zygote',
+            ],
+            executablePath:
+                process.env.NODE_ENV === 'production'
+                    ? process.env.PUPPETEER_EXECUTABLE_PATH
+                    : puppeteer.executablePath(),
         })
         const pages = await browser.pages()
         const page = pages[0]
@@ -212,13 +239,22 @@ class Scraper {
 
     static targetDataScraper = async (links) => {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: 'true',
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
                 height: 1080,
             },
-            args: ['--no-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--single-process',
+                '--no-zygote',
+            ],
+            executablePath:
+                process.env.NODE_ENV === 'production'
+                    ? process.env.PUPPETEER_EXECUTABLE_PATH
+                    : puppeteer.executablePath(),
         })
         const pages = await browser.pages()
         const page = pages[0]
