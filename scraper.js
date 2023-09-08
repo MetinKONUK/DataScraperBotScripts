@@ -29,6 +29,10 @@ class Scraper {
     static ENTITY_DISPLAY_LIMIT = 200
     static MAX_ENTITY_PER_PAGE = 20
 
+    static getRandomWaitTime() {
+        return (Math.random() * (2 - 1) + 1).toFixed(2) * 1000
+    }
+
     static reCAPTCHAFinder = async (page) => {
         const captcha = await page.$('.captchaBox')
         return captcha != null
@@ -43,7 +47,7 @@ class Scraper {
      */
     static resultCountScraper = async (category, district, city) => {
         const browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
@@ -125,7 +129,7 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
@@ -150,7 +154,7 @@ class Scraper {
                 city +
                 pageAttrb +
                 orderAttrb
-
+            await page.waitForTimeout(Scraper.getRandomWaitTime())
             links = links.concat(await this.linkScraper(URL, page))
         }
 
@@ -174,7 +178,7 @@ class Scraper {
         pageCount
     ) => {
         const browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
@@ -208,7 +212,7 @@ class Scraper {
 
     static targetDataScraper = async (links) => {
         const browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             protocolTimeout: 0,
             defaultViewport: {
                 width: 1920,
@@ -316,6 +320,8 @@ class Scraper {
             } catch (error) {
                 console.log(error)
             }
+            // wait for 1-2 seconds
+            await page.waitForTimeout(Scraper.getRandomWaitTime())
         }
 
         // console.log(data)

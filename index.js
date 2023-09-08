@@ -7,7 +7,7 @@ const Scraper = require('./scraper')
 const PORT = process.env.PORT || 5000
 
 server.get('/', async (req, res) => {
-    // query example: http://localhost:5000/?category=eczane&city=istanbul&district=kadikoy
+    // query example: http://localhost:5000/?category=veteriner&city=istanbul&district=sisli
     const { category, district, city } = req.query
 
     // Get the total number of results
@@ -57,8 +57,13 @@ server.get('/', async (req, res) => {
     let loss = (resultCount - Scraper.ENTITY_DISPLAY_LIMIT) << 1
 
     // Scrape the target data
-    let data = Scraper.targetDataScraper(links)
-    console.log(data)
+    try {
+        let data = await Scraper.targetDataScraper(links)
+        console.log('index.js data: ', data)
+        res.send({ data, loss })
+    } catch (error) {
+        console.log(error)
+    }
 })
 
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`))
