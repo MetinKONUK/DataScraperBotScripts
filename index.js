@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000
 
 server.use(
     cors({
-        origin: 'https://65003cc2ef5814556ca47f45--wonderful-kitsune-f7cfe5.netlify.app',
+        origin: 'https://65003f0fb1df0300080e4ff3--wonderful-kitsune-f7cfe5.netlify.app',
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
     })
