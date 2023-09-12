@@ -1,10 +1,26 @@
 const express = require('express')
 const server = express()
+const cors = require('cors')
+
 require('dotenv').config()
 
 const Scraper = require('./scraper')
 
 const PORT = process.env.PORT || 5000
+
+server.use(
+    cors({
+        origin: 'https://65003cc2ef5814556ca47f45--wonderful-kitsune-f7cfe5.netlify.app',
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        credentials: true,
+    })
+)
+
+server.use(
+    express.json({
+        limit: '10MB',
+    })
+)
 
 server.get('/', async (req, res) => {
     // query example: https://bulurum-scrape.onrender.com/?category=veteriner&city=istanbul&district=sisli

@@ -350,6 +350,7 @@ class Scraper {
                 )
 
                 data.push({
+                    id: index,
                     companyName,
                     professions,
                     address,
