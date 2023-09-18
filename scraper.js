@@ -1,4 +1,6 @@
 const puppeteer = require('puppeteer-extra')
+const websocket = require('ws')
+const responseMessages = require('./responseMessages')
 
 puppeteer.use(
     require('puppeteer-extra-plugin-recaptcha')({
@@ -6,81 +8,117 @@ puppeteer.use(
             id: '2captcha',
             token: process.env.CAPTCHA_API_TOKEN,
         },
-        visualFeedback: true, // colorize reCAPTCHAs (violet = detected, green = solved)
+        visualFeedback: false,
     })
 )
 
 puppeteer.use(require('puppeteer-extra-plugin-stealth')())
 
-/**
- * @class Scraper
- * @description Scrapes the data from bulurum.com
- * @exports Scraper
- * @static {string} BASE_URL - The base URL of the website
- * @static {number} ENTITY_DISPLAY_LIMIT - The maximum number of entities to display
- * @static {number} MAX_ENTITY_PER_PAGE - The maximum number of entities per page
- * @static {function} resultCountScraper - Scrapes the total number of results
- * @static {function} linkScraper - Scrapes the links in a page
- * @static {function} linksScraperForward - Scrapes the links in A-Z order
- * @static {function} linksScraperBackward - Scrapes the links in Z-A order
- * @static {function} targetDataScraper - Scrapes the target link
- */
 class Scraper {
     static BASE_URL = 'https://www.bulurum.com/search/'
     static ENTITY_DISPLAY_LIMIT = 200
     static MAX_ENTITY_PER_PAGE = 20
+    static browser = null
+    static PROTOCOL_TIMEOUT = 120 * 1000
+    static wsServer = null
 
-    static getRandomWaitTime() {
-        return (Math.random() * (2 - 1) + 1).toFixed(2) * 1000
+    static sendToClient = (message) => {
+        console.log('sending to client: ')
+        this.wsServer.clients.forEach((client) => {
+            if (client.readyState === websocket.OPEN) {
+                client.send(JSON.stringify(message))
+            }
+        })
+    }
+
+    static initializeWebSocket = async (wsServer) => {
+        this.wsServer = wsServer
+    }
+
+    static initializeBrowser = async () => {
+        this.BASE_URL = 'https://www.bulurum.com/search/'
+        this.ENTITY_DISPLAY_LIMIT = 200
+        this.MAX_ENTITY_PER_PAGE = 20
+        this.browser = null
+        this.PROTOCOL_TIMEOUT = 120 * 1000
+        this.browser = await (async () => {
+            return puppeteer.launch({
+                headless: 'new',
+                protocolTimeout: this.PROTOCOL_TIMEOUT,
+                defaultViewport: {
+                    width: 1920,
+                    height: 1080,
+                },
+                args: [`--proxy-server=http://87.251.18.203:50100`],
+                executablePath:
+                    process.env.NODE_ENV === 'production'
+                        ? process.env.PUPPETEER_EXECUTABLE_PATH
+                        : puppeteer.executablePath(),
+            })
+        })()
+    }
+
+    static cleanUp = async () => {
+        try {
+            await this.browser.close()
+            this.sendToClient(responseMessages['BROWSER_CLOSED'])
+        } catch (error) {
+            console.log(error)
+            this.sendToClient(responseMessages['BROWSER_CLOSING_FAILED'])
+        }
+
+        this.browser = null
+        this.BASE_URL = null
+        this.ENTITY_DISPLAY_LIMIT = null
+        this.MAX_ENTITY_PER_PAGE = null
+        this.PROTOCOL_TIMEOUT = null
+    }
+
+    static getRandomWaitTime(start = 0, end = 0.5) {
+        return (Math.random() * (end - start) + start).toFixed(2) * 1000
     }
 
     static reCAPTCHAFinder = async (page) => {
         const captcha = await page.$('.captchaBox')
+        if (captcha) {
+            this.sendToClient(responseMessages['RECAPTCHA_FOUND'])
+        }
         return captcha != null
     }
 
-    /**
-     *
-     * @param {string} category: The category of the entity
-     * @param {string} district: The district of the entity
-     * @param {string} city: The city of the entity
-     * @returns: The total number of results
-     */
-    static resultCountScraper = async (category, district, city) => {
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            protocolTimeout: 120 * 1000,
-            defaultViewport: {
-                width: 1920,
-                height: 1080,
-            },
-            args: [`--proxy-server=http://87.251.18.203:50100`],
-            executablePath:
-                process.env.NODE_ENV === 'production'
-                    ? process.env.PUPPETEER_EXECUTABLE_PATH
-                    : puppeteer.executablePath(),
-        })
-        const pages = await browser.pages()
+    static noResultFinder = async (page) => {
+        const noResult = await page.$('div.noResultsContainer')
+        return noResult != null
+    }
 
+    static resultCountScraper = async (category, district, city) => {
+        const pages = await this.browser.pages()
         const page = pages[0]
+
         await page.authenticate({
             username: process.env.PROXY_USERNAME,
             password: process.env.PROXY_PASSWORD,
         })
 
-        page.setDefaultTimeout(120 * 1000)
-
         const URL = this.BASE_URL + category + '/' + district + '-' + city
         await page.goto(URL)
 
-        // reCAPTCHA here
         if (await this.reCAPTCHAFinder(page)) {
-            console.log('reCAPTCHA found')
-            await page.solveRecaptchas()
+            try {
+                await page.solveRecaptchas()
+                this.sendToClient(responseMessages['RECAPTCHA_SOLVED'])
+            } catch (error) {
+                console.log(error)
+                this.sendToClient(responseMessages['RECAPTCHA_SOLVING_FAILED'])
+            }
+        }
+
+        if (await this.noResultFinder(page)) {
+            return 0
         }
 
         await page.waitForSelector('span.mainCountTitle', {
-            timeout: 120 * 1000,
+            timeout: 5 * 1000,
         })
         const districtEntityCount = await page.evaluate(() => {
             const COUNT = document
@@ -88,79 +126,62 @@ class Scraper {
                 .textContent.split(' ')[0]
             return parseInt(COUNT, 10)
         })
-
-        await browser.close()
-
+        let message = responseMessages['TOTAL_RESULTS_COUNT']
+        message.payload.totalResultsCount = districtEntityCount
+        message.payload.estimatedLoss = -1
+        this.sendToClient(message)
         return districtEntityCount
     }
 
-    /**
-     *
-     * @param {string} URL: The URL of the page to scrape that contains the links
-     * @param {puppeteer.browser.page} page: The page object of the browser
-     * @returns: The links in the page
-     * @description: Scrapes the links in a page
-     */
     static linkScraper = async (URL, page) => {
         await page.goto(URL)
-        // reCAPTCHA here
         if (await this.reCAPTCHAFinder(page)) {
-            console.log('reCAPTCHA found')
-            await page.solveRecaptchas()
+            try {
+                await page.solveRecaptchas()
+                this.sendToClient(responseMessages['RECAPTCHA_SOLVED'])
+            } catch (error) {
+                console.log(error)
+                this.sendToClient(responseMessages['RECAPTCHA_SOLVING_FAILED'])
+            }
         }
 
-        await page.waitForSelector('div#SearchResults', { timeout: 120 * 1000 })
-        const links = await page.evaluate(() => {
-            const RESULTS_HTML = document.querySelector('div#SearchResults')
-            const LINKS_HTML = RESULTS_HTML.querySelectorAll(
-                'a.FreeListingAreaBottomRight'
-            )
-            let links = []
-            LINKS_HTML.forEach((link) => {
-                links.push(link.href)
+        try {
+            await page.waitForSelector('div#SearchResults', {
+                timeout: 120 * 1000,
             })
+            const links = await page.evaluate(() => {
+                const RESULTS_HTML = document.querySelector('div#SearchResults')
+                const LINKS_HTML = RESULTS_HTML.querySelectorAll(
+                    'a.FreeListingAreaBottomRight'
+                )
+                let links = []
+                LINKS_HTML.forEach((link) => {
+                    links.push(link.href)
+                })
+                return links
+            })
+            this.sendToClient(responseMessages['INDIVIDUAL_LINKS_PAGE_SCRAPED'])
             return links
-        })
-
-        return links
+        } catch (error) {
+            console.log(error)
+            this.sendToClient(
+                responseMessages['INDIVIDUAL_LINKS_PAGE_SCRAPING_FAILED']
+            )
+        }
     }
 
-    /**
-     *
-     * @param {string} category: The category of the entity
-     * @param {string} district: The district of the entity
-     * @param {string} city: The city of the entity
-     * @param {number} pageCount: The number of pages to scrape
-     * @returns: The links in A-Z order beginning from the first page
-     * @description: Scrapes the links in A-Z order beginning from the first page
-     */
     static linksScraperForward = async (
         category,
         district,
         city,
         pageCount
     ) => {
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            protocolTimeout: 120 * 1000,
-            defaultViewport: {
-                width: 1920,
-                height: 1080,
-            },
-            args: [`--proxy-server=http://87.251.18.203:50100`],
-            executablePath:
-                process.env.NODE_ENV === 'production'
-                    ? process.env.PUPPETEER_EXECUTABLE_PATH
-                    : puppeteer.executablePath(),
-        })
-        const pages = await browser.pages()
+        const pages = await this.browser.pages()
         const page = pages[0]
         await page.authenticate({
             username: process.env.PROXY_USERNAME,
             password: process.env.PROXY_PASSWORD,
         })
-
-        page.setDefaultTimeout(120 * 1000)
 
         let links = []
         for (let i = 0; i < pageCount; i++) {
@@ -179,46 +200,21 @@ class Scraper {
             links = links.concat(await this.linkScraper(URL, page))
         }
 
-        browser.close()
         return links
     }
 
-    /**
-     *
-     * @param {string} category: The category of the entity
-     * @param {string} district: The district of the entity
-     * @param {string} city: The city of the entity
-     * @param {number} pageCount: The number of pages to scrape
-     * @returns: The links in Z-A order beginning from the last page
-     * @description: Scrapes the links in Z-A order beginning from the last page
-     */
     static linksScraperBackward = async (
         category,
         district,
         city,
         pageCount
     ) => {
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            protocolTimeout: 120 * 1000,
-            defaultViewport: {
-                width: 1920,
-                height: 1080,
-            },
-            args: [`--proxy-server=http://87.251.18.203:50100`],
-            executablePath:
-                process.env.NODE_ENV === 'production'
-                    ? process.env.PUPPETEER_EXECUTABLE_PATH
-                    : puppeteer.executablePath(),
-        })
-        const pages = await browser.pages()
+        const pages = await this.browser.pages()
         const page = pages[0]
         await page.authenticate({
             username: process.env.PROXY_USERNAME,
             password: process.env.PROXY_PASSWORD,
         })
-
-        page.setDefaultTimeout(120 * 1000)
 
         let links = []
         for (let i = 0; i < pageCount; i++) {
@@ -236,27 +232,12 @@ class Scraper {
 
             links = links.concat(await this.linkScraper(URL, page))
         }
-        browser.close()
         return links
     }
 
     static targetDataScraper = async (links) => {
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            protocolTimeout: 120 * 1000,
-            defaultViewport: {
-                width: 1920,
-                height: 1080,
-            },
-            args: [`--proxy-server=http://87.251.18.203:50100`],
-            executablePath:
-                process.env.NODE_ENV === 'production'
-                    ? process.env.PUPPETEER_EXECUTABLE_PATH
-                    : puppeteer.executablePath(),
-        })
-        const pages = await browser.pages()
+        const pages = await this.browser.pages()
         const page = pages[0]
-        page.setDefaultTimeout(120 * 1000)
 
         await page.authenticate({
             username: process.env.PROXY_USERNAME,
@@ -266,13 +247,18 @@ class Scraper {
         let data = []
         for (let [index, link] of links.entries()) {
             await page.goto(link)
-            // reCAPTCHA here
             if (await this.reCAPTCHAFinder(page)) {
-                console.log('reCAPTCHA found')
-                await page.solveRecaptchas()
+                try {
+                    await page.solveRecaptchas()
+                    this.sendToClient(responseMessages['RECAPTCHA_SOLVED'])
+                } catch (error) {
+                    console.log(error)
+                    this.sendToClient(
+                        responseMessages['RECAPTCHA_SOLVING_FAILED']
+                    )
+                }
             }
 
-            // Now wait after the reCAPTCHA is solved
             await page.waitForSelector('#CompanyNameLbl', {
                 timeout: 120 * 1000,
             })
@@ -337,18 +323,6 @@ class Scraper {
                     ]
                 })
 
-                console.log(
-                    index,
-                    companyName,
-                    professions,
-                    address,
-                    primaryPhone,
-                    secondaryPhone,
-                    websiteLink,
-                    email,
-                    instagram
-                )
-
                 data.push({
                     id: index,
                     companyName,
@@ -360,16 +334,16 @@ class Scraper {
                     email,
                     instagram,
                 })
+                this.sendToClient(responseMessages['INDIVIDUAL_ENTITY_SCRAPED'])
             } catch (error) {
                 console.log(error)
+                this.sendToClient(
+                    responseMessages['INDIVIDUAL_ENTITY_SCRAPING_FAILED']
+                )
             }
-            // wait for 1-2 seconds
             await page.waitForTimeout(Scraper.getRandomWaitTime())
         }
 
-        // console.log(data)
-        await browser.close()
-        console.log('scraper.js data: ', data)
         return data
     }
 }
