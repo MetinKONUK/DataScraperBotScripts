@@ -20,13 +20,13 @@ server.use(
     })
 )
 
-server.use(
-    cors({
-        origin: 'http://localhost:3000',
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-        credentials: true,
-    })
-)
+// server.use(
+//     cors({
+//         origin: 'http://localhost:3000',
+//         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+//         credentials: true,
+//     })
+// )
 
 server.use(
     express.json({
