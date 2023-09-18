@@ -14,7 +14,7 @@ const wss = new websocket.Server({ server: httpServer })
 
 server.use(
     cors({
-        origin: 'https://65003f0fb1df0300080e4ff3--wonderful-kitsune-f7cfe5.netlify.app',
+        origin: 'https://main--bulurum-scrape.netlify.app',
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
     })
