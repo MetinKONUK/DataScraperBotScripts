@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer-extra')
 const websocket = require('ws')
 const responseMessages = require('./responseMessages')
+const { v4: uuidv4 } = require('uuid')
 
 puppeteer.use(
     require('puppeteer-extra-plugin-recaptcha')({
@@ -87,8 +88,11 @@ class Scraper {
     }
 
     static noResultFinder = async (page) => {
-        const noResult = await page.$('div.noResultsContainer')
-        return noResult != null
+        const noResultsContainer = await page.$('div.noResultsContainer')
+        const surrogateResultsContainer = await page.$(
+            '#surrogateResultsContainer'
+        )
+        return noResultsContainer != null || surrogateResultsContainer != null
     }
 
     static resultCountScraper = async (category, district, city) => {
@@ -273,6 +277,8 @@ class Scraper {
                     websiteLink,
                     email,
                     instagram,
+                    facebook,
+                    mapLink,
                 ] = await page.evaluate(() => {
                     let companyName =
                         document
@@ -297,19 +303,28 @@ class Scraper {
                     let websiteLink =
                         document
                             .querySelector('#WebsiteContLbl > a')
-                            ?.textContent.trim() ?? null
+                            ?.href.trim() ?? null
                     let email =
                         document
                             .querySelector('#EmailContLbl > a')
-                            ?.textContent.trim() ?? null
+                            ?.href.trim() ?? null
                     let instagram =
                         document
                             .querySelector('a:has(#InstagramIcon)')
-                            ?.textContent.trim() ?? null
+                            ?.href.trim() ?? null
+                    let facebook =
+                        document
+                            .querySelector('a:has(#FacebookIcon)')
+                            ?.href.trim() ?? null
+                    let mapLink =
+                        document.querySelector('#viewInMapId')?.href.trim() ??
+                        null
 
                     address = address?.split('\n')[0] ?? null
-                    websiteLink = websiteLink?.includes('http') ?? null
-                    email = email?.includes('@') ?? null
+                    websiteLink = websiteLink?.includes('http')
+                        ? websiteLink
+                        : null
+                    email = email?.includes('@') ? email : null
 
                     return [
                         companyName,
@@ -320,11 +335,13 @@ class Scraper {
                         websiteLink,
                         email,
                         instagram,
+                        facebook,
+                        mapLink,
                     ]
                 })
 
                 data.push({
-                    id: index,
+                    id: uuidv4().substring(0, 8),
                     companyName,
                     professions,
                     address,
@@ -333,6 +350,8 @@ class Scraper {
                     websiteLink,
                     email,
                     instagram,
+                    facebook,
+                    mapLink,
                 })
                 this.sendToClient(responseMessages['INDIVIDUAL_ENTITY_SCRAPED'])
             } catch (error) {
